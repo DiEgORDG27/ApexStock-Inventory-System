@@ -1,0 +1,28 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# VS Code workspace files
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and runtime files
+*.log
+*.sqlite3
+*.db
+
+# Packages
+*.egg-info/
+*.egg
+
+# Ignore main.py if you want to keep it local and not publish legacy/test code
+main.py

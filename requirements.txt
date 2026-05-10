@@ -1,0 +1,5 @@
+pandas
+mysql-connector-python
+customtkinter
+openpyxl
+Pillow
