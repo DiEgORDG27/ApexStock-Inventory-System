@@ -1,8 +1,8 @@
-# ApexStock - Sistema de Inventário
+# StockFlow - Sistema de Inventário
 
-![ApexStock em Execução](Imagem%20do%20Sistema%20em%20execução.png)
+![StockFlow em Execução](Imagem%20do%20Sistema%20em%20execução.png)
 
-O ApexStock é uma solução de gerenciamento de inventário desenvolvida para automatizar a importação de dados, a atualização de estoque e a visualização de produtos em um fluxo simples.
+O StockFlow é uma solução de gerenciamento de inventário desenvolvida para automatizar a importação de dados, a atualização de estoque e a visualização de produtos em um fluxo simples.
 
 ---
 

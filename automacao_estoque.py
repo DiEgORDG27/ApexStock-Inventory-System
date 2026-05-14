@@ -602,7 +602,7 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 app = ctk.CTk()
-app.title("ApexStock - Sistema de Inventário Avançado")
+app.title("StockFlow - Sistema de Inventário Avançado")
 app.geometry("1000x700")
 
 # Estilo para tabelas
@@ -632,7 +632,7 @@ style.configure("Treeview.Item", borderwidth=1, relief="solid")
 header_frame = ctk.CTkFrame(app, height=60)
 header_frame.pack(fill="x", padx=20, pady=(20,10))
 
-logo_label = ctk.CTkLabel(header_frame, text="🛒 ApexStock", font=("Arial", 24, "bold"))
+logo_label = ctk.CTkLabel(header_frame, text="� StockFlow", font=("Arial", 24, "bold"))
 logo_label.pack(side="left", padx=10)
 
 # Botões no header
