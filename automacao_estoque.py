@@ -120,9 +120,16 @@ def consultar_produtos(filtro_coluna=None, filtro_valor=None):
         cursor = conexao.cursor()
         query = "SELECT id, Produto, Quantidade, Valor, DataEntrada, DataSaida, Fornecedor FROM inventario"
         params = []
-        if filtro_coluna and filtro_valor:
-            query += f" WHERE {filtro_coluna} LIKE %s"
-            params.append(f"%{filtro_valor}%")
+        if filtro_valor:
+            if not filtro_coluna or filtro_coluna == "Nenhum":
+                query += (
+                    " WHERE Produto LIKE %s OR Fornecedor LIKE %s "
+                    "OR DataEntrada LIKE %s OR DataSaida LIKE %s"
+                )
+                params.extend([f"%{filtro_valor}%"] * 4)
+            else:
+                query += f" WHERE {filtro_coluna} LIKE %s"
+                params.append(f"%{filtro_valor}%")
         cursor.execute(query, params)
         rows = cursor.fetchall()
         df = pd.DataFrame(rows, columns=['ID', 'Produto', 'Quantidade', 'Valor', 'DataEntrada', 'DataSaida', 'Fornecedor'])
@@ -343,7 +350,7 @@ def pesquisar_produtos(entry_pesquisa, combo_filtro, tree):
     filtro_valor = entry_pesquisa.get()
     filtro_coluna = combo_filtro.get()
     if filtro_coluna == "Nenhum":
-        df = consultar_produtos()
+        df = consultar_produtos(None, filtro_valor)
     else:
         df = consultar_produtos(filtro_coluna, filtro_valor)
     atualizar_tabela(tree, df)
@@ -661,6 +668,7 @@ combo_filtro.grid(row=0, column=1, padx=5)
 entry_pesquisa = ctk.CTkEntry(frame_pesquisa, width=300, placeholder_text="Digite o termo de pesquisa...")
 entry_pesquisa.grid(row=0, column=2, padx=5)
 ctk.CTkButton(frame_pesquisa, text="Pesquisar", command=lambda: pesquisar_produtos(entry_pesquisa, combo_filtro, tree_visualizar)).grid(row=0, column=3, padx=5)
+entry_pesquisa.bind("<Return>", lambda event: pesquisar_produtos(entry_pesquisa, combo_filtro, tree_visualizar))
 ctk.CTkButton(frame_pesquisa, text="Excluir Selecionados", command=excluir_produtos_selecionados).grid(row=0, column=4, padx=5)
 ctk.CTkButton(frame_pesquisa, text="Atualizar", command=atualizar_tudo).grid(row=0, column=5, padx=5)
 ctk.CTkButton(frame_pesquisa, text="Editar Quantidade", command=editar_quantidade_produtos_selecionados).grid(row=0, column=6, padx=5)
