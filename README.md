@@ -1,5 +1,7 @@
 # ApexStock - Sistema de Inventário
 
+![ApexStock em Execução](Imagem%20do%20Sistema%20em%20execução.png)
+
 O ApexStock é uma solução de gerenciamento de inventário desenvolvida para automatizar a importação de dados, a atualização de estoque e a visualização de produtos em um fluxo simples.
 
 ---
@@ -38,16 +40,50 @@ O ApexStock é uma solução de gerenciamento de inventário desenvolvida para a
    pip install -r requirements.txt
    ```
 
-2. Execute o banco de dados MySQL (XAMPP ou outro servidor local).
-3. Rode o script de criação da tabela:
-   ```bash
-   mysql -u root < script.sql
+2. **Configure as credenciais do banco de dados:**
+   
+   Abra o arquivo `automacao_estoque.py` e localize as funções:
+   - `criar_banco_se_nao_existe()` (linha ~18)
+   - `conectar_mysql()` (linha ~69)
+   
+   Altere os seguintes parâmetros com as credenciais do seu servidor MySQL:
+   ```python
+   host='localhost',      # Mude para o IP/host do seu servidor
+   user='root',           # Mude para seu usuário MySQL
+   password='',           # Mude para sua senha MySQL
+   database='empresa_db'  # Mantém o nome do banco
    ```
+   
+   **Exemplo:**
+   ```python
+   mysql.connector.connect(
+       host='192.168.1.100',    # IP do servidor
+       user='admin',             # Seu usuário
+       password='sua_senha_aqui', # Sua senha
+       database='empresa_db'
+   )
+   ```
+
+3. Execute o banco de dados MySQL (XAMPP ou outro servidor local).
 
 4. Inicie o sistema:
    ```bash
    python automacao_estoque.py
    ```
+
+> **Nota**: O programa cria automaticamente o banco de dados `empresa_db` e as tabelas necessárias na primeira execução. Não é necessário rodar o script.sql manualmente.
+
+---
+
+## Sobre o arquivo `script.sql`
+
+O arquivo `script.sql` é um **backup de segurança e documentação** dos comandos SQL que criam o banco de dados e as tabelas. Ele está incluído no projeto para:
+
+1. **Backup manual**: Caso você queira criar o banco manualmente pelo MySQL Workbench ou terminal
+2. **Documentação**: Deixa claro qual é a estrutura do banco de dados
+3. **Portabilidade**: Se precisar restaurar o banco em outro servidor
+
+**Você não precisa executá-lo** - o programa faz tudo automaticamente! 🚀
 
 ---
 
