@@ -6,6 +6,10 @@ from tkinter import filedialog, messagebox, ttk, simpledialog, Tk
 
 ADMIN_PASSWORD = "12345"
 
+tree_visualizar = None
+tree_baixo = None
+fornecedor_frame = None
+
 def criar_banco_se_nao_existe():
     # Cria banco e tabela se não existirem
     conexao = None
@@ -24,7 +28,7 @@ def criar_banco_se_nao_existe():
         # Usar banco
         cursor.execute("USE empresa_db")
         
-        # Criar tabela
+        # Criar tabela inventario
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS inventario (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -40,9 +44,21 @@ def criar_banco_se_nao_existe():
         cursor.execute("SHOW COLUMNS FROM inventario LIKE 'DataSaída'")
         if cursor.fetchone():
             cursor.execute("ALTER TABLE inventario CHANGE COLUMN `DataSaída` DataSaida DATE")
+
+        # Criar tabela fornecedores
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS fornecedores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                Nome VARCHAR(255) NOT NULL,
+                Telefone VARCHAR(20),
+                Endereco TEXT,
+                CNPJ VARCHAR(20),
+                Email VARCHAR(255)
+            )
+        """)
         
         conexao.commit()
-        print("Banco de dados e tabela criados com sucesso!")
+        print("Banco de dados e tabelas criados com sucesso!")
     except mysql.connector.Error as err:
         print(f"Erro ao criar banco: {err}")
     finally:
@@ -138,15 +154,23 @@ def consultar_baixo_estoque():
             conexao.close()
 
 def consultar_fornecedores():
-    # Lista fornecedores distintos
+    # Lista fornecedores do inventário e da tabela de fornecedores
     conexao = None
+    fornecedores = set()
     try:
         conexao = conectar_mysql()
         cursor = conexao.cursor()
-        cursor.execute("SELECT DISTINCT Fornecedor FROM inventario")
+        cursor.execute("SELECT DISTINCT Fornecedor FROM inventario WHERE Fornecedor IS NOT NULL")
         rows = cursor.fetchall()
-        fornecedores = [row[0] for row in rows]
-        return fornecedores
+        fornecedores.update(row[0] for row in rows if row[0])
+
+        cursor.execute("SHOW TABLES LIKE 'fornecedores'")
+        if cursor.fetchone():
+            cursor.execute("SELECT Nome FROM fornecedores WHERE Nome IS NOT NULL")
+            rows = cursor.fetchall()
+            fornecedores.update(row[0] for row in rows if row[0])
+
+        return sorted(fornecedores)
     except mysql.connector.Error as err:
         messagebox.showerror("Erro", f"Falha na consulta: {err}")
         return []
@@ -159,7 +183,7 @@ def consultar_produtos_fornecedor(fornecedor):
     # Busca produtos do fornecedor selecionado
     return consultar_produtos('Fornecedor', fornecedor)
 
-def editar_produto(id_produto, coluna, novo_valor):
+def editar_produto(id_produto, coluna, novo_valor, mostrar_mensagem=True):
     # Atualiza campo de um produto
     conexao = None
     try:
@@ -168,7 +192,8 @@ def editar_produto(id_produto, coluna, novo_valor):
         query = f"UPDATE inventario SET {coluna} = %s WHERE id = %s"
         cursor.execute(query, (novo_valor, id_produto))
         conexao.commit()
-        messagebox.showinfo("Sucesso", "Produto editado com sucesso!")
+        if mostrar_mensagem:
+            messagebox.showinfo("Sucesso", "Produto editado com sucesso!")
     except mysql.connector.Error as err:
         messagebox.showerror("Erro", f"Falha na edição: {err}")
     finally:
@@ -213,10 +238,22 @@ def adicionar_produto_manual(produto, quantidade, valor, data_entrada, data_said
             conexao.close()
 
 def adicionar_fornecedor_manual(nome, telefone, endereco, cnpj, email):
-    # Registra fornecedor em memória de teste
-    # Como não temos tabela separada, podemos armazenar em inventario ou criar uma nota
-    messagebox.showinfo("Info", f"Fornecedor '{nome}' cadastrado (Telefone: {telefone}, Endereço: {endereco}, CNPJ: {cnpj}, Email: {email})")
-    # Futuramente, criar tabela fornecedores
+    # Registra fornecedor em tabela persistente
+    conexao = None
+    try:
+        conexao = conectar_mysql()
+        cursor = conexao.cursor()
+        query = "INSERT INTO fornecedores (Nome, Telefone, Endereco, CNPJ, Email) VALUES (%s, %s, %s, %s, %s)"
+        cursor.execute(query, (nome, telefone, endereco, cnpj, email))
+        conexao.commit()
+        messagebox.showinfo("Sucesso", f"Fornecedor '{nome}' cadastrado com sucesso!")
+        atualizar_tudo()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Erro", f"Falha ao adicionar fornecedor: {err}")
+    finally:
+        if conexao and conexao.is_connected():
+            cursor.close()
+            conexao.close()
 
 def processar_dados(entry_csv, entry_excel):
     # Processa arquivos CSV e Excel
@@ -244,6 +281,7 @@ def processar_dados(entry_csv, entry_excel):
         dados_excel = df_excel[colunas_necessarias]
 
         enviar_dados_mysql(dados_csv, dados_excel)
+        atualizar_tudo()
 
     except Exception as e:
         messagebox.showerror("Erro de Processamento", f"Falha ao ler ou transformar dados: {e}")
@@ -288,7 +326,7 @@ def atualizar_tabela(tree, df, mostrar_status=False):
         tree["show"] = "headings"
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=100 if col != 'Status' else 50)
+            tree.column(col, width=100 if col != 'Status' else 50, anchor='center')
         for _, row in df.iterrows():
             values = list(row)
             if mostrar_status and 'Quantidade' in df.columns:
@@ -309,6 +347,103 @@ def pesquisar_produtos(entry_pesquisa, combo_filtro, tree):
     else:
         df = consultar_produtos(filtro_coluna, filtro_valor)
     atualizar_tabela(tree, df)
+
+def atualizar_fornecedores():
+    global fornecedor_frame
+    for widget in fornecedor_frame.winfo_children():
+        widget.destroy()
+    fornecedores = consultar_fornecedores()
+    for fornecedor in fornecedores:
+        row = ctk.CTkFrame(fornecedor_frame)
+        row.pack(fill="x", pady=2)
+        ctk.CTkLabel(row, text=fornecedor, anchor="w").pack(side="left", padx=(5, 10), fill="x", expand=True)
+        ctk.CTkButton(row, text="Abrir", width=80, command=lambda f=fornecedor: abrir_edicao_fornecedor(f)).pack(side="left", padx=2)
+        ctk.CTkButton(row, text="Excluir", width=80, fg_color="#c0392b", hover_color="#e74c3c", command=lambda f=fornecedor: excluir_fornecedor(f)).pack(side="left", padx=2)
+
+def excluir_produtos_selecionados():
+    senha = simpledialog.askstring("Senha Admin", "Digite a senha de admin:", show='*')
+    if not senha:
+        return
+    if senha != ADMIN_PASSWORD:
+        messagebox.showerror("Erro", "Senha incorreta!")
+        return
+    itens = tree_visualizar.selection()
+    if not itens:
+        messagebox.showwarning("Atenção", "Selecione pelo menos um produto para excluir.")
+        return
+    if not messagebox.askyesno("Confirmar", "Tem certeza que deseja excluir os produtos selecionados?"):
+        return
+    conexao = None
+    try:
+        conexao = conectar_mysql()
+        cursor = conexao.cursor()
+        for item in itens:
+            values = tree_visualizar.item(item, "values")
+            if values:
+                try:
+                    produto_id = int(values[0])
+                    cursor.execute("DELETE FROM inventario WHERE id = %s", (produto_id,))
+                except ValueError:
+                    continue
+        conexao.commit()
+        messagebox.showinfo("Sucesso", "Produtos excluídos com sucesso.")
+        atualizar_tudo()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Erro", f"Falha ao excluir produtos: {err}")
+    finally:
+        if conexao and conexao.is_connected():
+            cursor.close()
+            conexao.close()
+
+def excluir_fornecedor(fornecedor):
+    if not messagebox.askyesno("Confirmar", f"Excluir fornecedor '{fornecedor}'?"):
+        return
+    conexao = None
+    try:
+        conexao = conectar_mysql()
+        cursor = conexao.cursor()
+        cursor.execute("DELETE FROM fornecedores WHERE Nome = %s", (fornecedor,))
+        conexao.commit()
+        messagebox.showinfo("Sucesso", "Fornecedor excluído com sucesso.")
+        atualizar_tudo()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Erro", f"Falha ao excluir fornecedor: {err}")
+    finally:
+        if conexao and conexao.is_connected():
+            cursor.close()
+            conexao.close()
+
+def atualizar_tudo():
+    if tree_visualizar:
+        atualizar_tabela(tree_visualizar, consultar_produtos(), mostrar_status=False)
+    atualizar_fornecedores()
+    if tree_baixo:
+        atualizar_tabela(tree_baixo, consultar_baixo_estoque(), mostrar_status=True)
+
+def editar_quantidade_produtos_selecionados():
+    senha = simpledialog.askstring("Senha Admin", "Digite a senha de admin:", show='*')
+    if not senha:
+        return
+    if senha != ADMIN_PASSWORD:
+        messagebox.showerror("Erro", "Senha incorreta!")
+        return
+    itens = tree_visualizar.selection()
+    if not itens:
+        messagebox.showwarning("Atenção", "Selecione pelo menos um produto para editar a quantidade.")
+        return
+    novo_valor = simpledialog.askinteger("Quantidade", "Informe nova quantidade para os produtos selecionados:", minvalue=0)
+    if novo_valor is None:
+        return
+    for item in itens:
+        values = tree_visualizar.item(item, "values")
+        if values:
+            try:
+                produto_id = int(values[0])
+                editar_produto(produto_id, 'Quantidade', novo_valor, mostrar_mensagem=False)
+            except ValueError:
+                continue
+    atualizar_tudo()
+    messagebox.showinfo("Sucesso", "Quantidade atualizada nos produtos selecionados.")
 
 def abrir_janela_importar_exportar():
     # Abre painel de importação/exportação
@@ -368,6 +503,7 @@ def abrir_adicionar_produto():
             data_saida = entry_data_saida.get() or None
             fornecedor = entry_fornecedor.get()
             adicionar_produto_manual(produto, quantidade, valor, data_entrada, data_saida, fornecedor)
+            atualizar_tudo()
             janela.destroy()
         except ValueError:
             messagebox.showerror("Erro", "Dados inválidos! Verifique os campos.")
@@ -420,9 +556,10 @@ def abrir_edicao_fornecedor(fornecedor):
         id_produto = tree.item(item, "values")[0]
         novo_valor = simpledialog.askstring("Editar", f"Novo valor para {coluna}:", initialvalue=tree.item(item, "values")[col_index])
         if novo_valor:
-            editar_produto(id_produto, coluna, novo_valor)
+            editar_produto(id_produto, coluna, novo_valor, mostrar_mensagem=False)
             df.at[int(id_produto)-1, coluna] = novo_valor  # Ajustar índice
             atualizar_tabela(tree, df)
+            atualizar_tudo()
     
     tree.bind("<Double-1>", on_double_click)
 
@@ -524,8 +661,11 @@ combo_filtro.grid(row=0, column=1, padx=5)
 entry_pesquisa = ctk.CTkEntry(frame_pesquisa, width=300, placeholder_text="Digite o termo de pesquisa...")
 entry_pesquisa.grid(row=0, column=2, padx=5)
 ctk.CTkButton(frame_pesquisa, text="Pesquisar", command=lambda: pesquisar_produtos(entry_pesquisa, combo_filtro, tree_visualizar)).grid(row=0, column=3, padx=5)
+ctk.CTkButton(frame_pesquisa, text="Excluir Selecionados", command=excluir_produtos_selecionados).grid(row=0, column=4, padx=5)
+ctk.CTkButton(frame_pesquisa, text="Atualizar", command=atualizar_tudo).grid(row=0, column=5, padx=5)
+ctk.CTkButton(frame_pesquisa, text="Editar Quantidade", command=editar_quantidade_produtos_selecionados).grid(row=0, column=6, padx=5)
 
-tree_visualizar = ttk.Treeview(tab_visualizar)
+tree_visualizar = ttk.Treeview(tab_visualizar, selectmode='extended')
 tree_visualizar.pack(fill="both", expand=True, padx=10, pady=10)
 df_inicial = consultar_produtos()
 atualizar_tabela(tree_visualizar, df_inicial)
@@ -541,15 +681,13 @@ atualizar_tabela(tree_baixo, df_baixo, mostrar_status=True)
 # Aba Fornecedores
 tab_fornecedores = tabview.add("🏢 Fornecedores")
 ctk.CTkLabel(tab_fornecedores, text="Cadastro e Gestão de Fornecedores", font=("Arial", 16, "bold")).pack(pady=10)
+ctk.CTkButton(tab_fornecedores, text="Atualizar Fornecedores", command=atualizar_fornecedores).pack(pady=5)
 
 # Lista de fornecedores
 fornecedor_frame = ctk.CTkScrollableFrame(tab_fornecedores)
 fornecedor_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-fornecedores = consultar_fornecedores()
-for fornecedor in fornecedores:
-    btn = ctk.CTkButton(fornecedor_frame, text=fornecedor, command=lambda f=fornecedor: abrir_edicao_fornecedor(f))
-    btn.pack(pady=2, fill="x")
+atualizar_fornecedores()
 
 # Botão para adicionar fornecedor
 ctk.CTkButton(tab_fornecedores, text="➕ Adicionar Fornecedor", command=abrir_adicionar_fornecedor).pack(pady=10)
@@ -557,4 +695,5 @@ ctk.CTkButton(tab_fornecedores, text="➕ Adicionar Fornecedor", command=abrir_a
 # Loop principal
 if __name__ == "__main__":
     criar_banco_se_nao_existe()
+    atualizar_tudo()
     app.mainloop()

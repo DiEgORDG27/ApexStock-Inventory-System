@@ -25,6 +25,9 @@ O ApexStock é uma solução de gerenciamento de inventário desenvolvida para a
 - Exibe alerta de baixo estoque
 - Permite cadastro manual de produto e fornecedor
 - Exporta relatórios em CSV e Excel
+- Atualiza a interface automaticamente após add/editar/excluir dados
+- Permite edição de quantidade em massa com senha de administrador
+- Permite exclusão de produtos selecionados e fornecedores
 
 ---
 
@@ -59,7 +62,7 @@ O ApexStock é uma solução de gerenciamento de inventário desenvolvida para a
 
 ## Dicas
 
-- Senha admin pra editar fornecedores: 12345
+- Senha admin pra editar fornecedores: 12345 (senha de exemplo)
 - Arquivos CSV/Excel precisam ter colunas: Produto, Quantidade, Valor, Data de Entrada, Data de Saída, Fornecedor
 - Pra ícone personalizado, adiciona icone.ico na pasta e descomenta a linha no código
 
@@ -67,7 +70,7 @@ O ApexStock é uma solução de gerenciamento de inventário desenvolvida para a
 
 ## Senha de acesso
 
-- Senha para abrir o fornecedor: `12345`
+- Senha para abrir o fornecedor: `12345`(senha de exemplo)
 
 > Importante: em um projeto real use variáveis de ambiente. Para este portfólio, a senha é apenas um exemplo.
 
